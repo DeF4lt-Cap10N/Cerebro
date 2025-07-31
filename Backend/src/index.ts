@@ -9,18 +9,19 @@ import express from "express"
 const app = express();
 app.use(express.json());
 
-import { userModel } from "./db"
+import { userModel, ContentModel } from "./db"
+import { userMiddleware } from './middleware';
 
 
 
 app.post("/api/v1/signup", async (req, res) => {
-    const { username, userpassword } = req.body;
+    const { username, password } = req.body;
 
     const duplicateUser = await userModel.findOne({
         username: username
     })
 
-    const hashPassword = await bcrypt.hash(userpassword, 5);
+    const hashPassword = await bcrypt.hash(password, 5);
     console.log(hashPassword);
 
     if (duplicateUser) {
@@ -33,25 +34,78 @@ app.post("/api/v1/signup", async (req, res) => {
     try {
         await userModel.create({
             username: username,
-            userpassword: hashPassword,
+            password: hashPassword,
         })
         res.json({
-            message:"user Signup successfuly!!"
+            message: "user Signup successfuly!!"
         })
-    } catch (err) {
+    }
+    catch (err) {
         res.status(400).json({
             message: `user signup issue : ${err}`
         })
     }
 })
 
-app.post("/api/v1/sigin", (req, res) => {
+app.post("/api/v1/signin", async (req, res) => {
+    const { username, password } = req.body;
+
+    const findUser = await userModel.findOne({
+        username
+    })
+
+    if (!findUser) {
+        res.status(403).json({
+            message: "User Not Found!!"
+        })
+        return;
+    }
+
+    if (!findUser.password) {
+        throw new Error("User password is not set");
+    }
+
+    const matchPass = await bcrypt.compare(password, findUser.password);
+
+    if (!process.env.JWT_SECRET) {
+        throw new Error("JWT_SECRET is not defined in env");
+    }
+
+    if (matchPass) {
+        const token = jwt.sign({
+            id: findUser._id.toString()
+        }, process.env.JWT_SECRET)
+
+        res.status(201).json({
+            token: token,
+            message: "token genreted successfully!"
+        })
+    }
+    else {
+        res.json({
+            messsage: "sorry password Not Matched!"
+        })
+    }
+
 
 })
 
+app.post("/api/v1/content", userMiddleware, async (req, res) => {
+    const { link, title } = req.body;
+
+    await ContentModel.create({
+        link,
+        title,
+        // @ts-ignore
+        userId: req.userId,
+        tags: []
+    })
+
+    res.json({
+        message: "content Created"
+    })
 
 
-app.post("/api/v1/content", (req, res) => {
 
 })
 
@@ -78,7 +132,6 @@ async function main() {
         console.log("db not connected");
         return;
     }
-
     try {
         await mongoose.connect(process.env.MONGODBURI)
             .then(() => {

@@ -109,12 +109,49 @@ app.post("/api/v1/content", userMiddleware, async (req, res) => {
 
 })
 
-app.get("/api/v1/content", (req, res) => {
+app.get("/api/v1/content", userMiddleware, async (req, res) => {
+    //@ts-ignore
+    const userId = req.userId;
 
+    const content = await ContentModel.find({
+        userId
+    })
+
+    if (content) {
+        res.json({
+            content
+        })
+    }
+    else {
+        res.json({
+            message: "content is empty"
+        })
+    }
 })
 
-app.delete("/api/v1/content", (req, res) => {
+app.delete("/api/v1/content/:id", async (req, res) => {
+    //@ts-ignore
+    const userId =req.userId;
+    //@ts-ignore
+    const _id = new mongoose.Types.ObjectId(req.params.id);
 
+
+    const contentDelete = await ContentModel.deleteOne({
+        _id
+    })
+
+    if (contentDelete.deletedCount>0) {
+        res.json({
+            message: "content Delete",
+            _id
+        })
+    }
+    else {
+        res.json({
+            message: "sorry content is not available",
+            _id
+        })
+    }
 })
 
 app.delete("/api/v1/brain/share", (req, res) => {

@@ -3,13 +3,13 @@ dotenv.config();
 import mongoose from "mongoose";
 import jwt from "jsonwebtoken"
 import bcrypt, { hash } from "bcrypt"
-
+import { random } from './utils';
 
 import express from "express"
 const app = express();
 app.use(express.json());
 
-import { userModel, ContentModel } from "./db"
+import { userModel, ContentModel, LinkModel } from "./db"
 import { userMiddleware } from './middleware';
 
 
@@ -131,7 +131,7 @@ app.get("/api/v1/content", userMiddleware, async (req, res) => {
 
 app.delete("/api/v1/content/:id", async (req, res) => {
     //@ts-ignore
-    const userId =req.userId;
+    const userId = req.userId;
     //@ts-ignore
     const _id = new mongoose.Types.ObjectId(req.params.id);
 
@@ -140,7 +140,7 @@ app.delete("/api/v1/content/:id", async (req, res) => {
         _id
     })
 
-    if (contentDelete.deletedCount>0) {
+    if (contentDelete.deletedCount > 0) {
         res.json({
             message: "content Delete",
             _id
@@ -154,14 +154,49 @@ app.delete("/api/v1/content/:id", async (req, res) => {
     }
 })
 
-app.delete("/api/v1/brain/share", (req, res) => {
+app.post("/api/v1/brain/share", userMiddleware, async (req, res) => {
+    const { share } = req.body;
+    if (share) {
+       //@ts-ignore
+        const existingLink = await LinkModel.findOne({ userId: req.userId });
+        if (existingLink) {
+            res.json({ hash: existingLink.hash }); 
+            return;
+        }
 
-})
+        const hash = random(10);
+        //@ts-ignore
+        await LinkModel.create({ userId: req.userId, hash });
+        res.json({ hash }); 
+    } else {
+        //@ts-ignore
+        await LinkModel.deleteOne({ userId: req.userId });
+        res.json({ message: "Removed link" }); 
+    }
+});
 
-app.delete("/api/v1/brain/:shareLink", (req, res) => {
+app.get("/api/v1/brain/:shareLink", async (req, res) => {
+    const hash = req.params.shareLink;
 
-})
+    const link = await LinkModel.findOne({ hash });
+    if (!link) {
+        res.status(404).json({ message: "Invalid share link" });
+        return;
+    }
 
+    const content = await ContentModel.find({ userId: link.userId });
+    const user = await userModel.findOne({ _id: link.userId });
+
+    if (!user) {
+        res.status(404).json({ message: "User not found" }); 
+        return;
+    }
+
+    res.json({
+        username: user.username,
+        content
+    }); 
+});
 
 
 async function main() {

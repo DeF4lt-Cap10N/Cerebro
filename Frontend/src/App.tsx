@@ -1,4 +1,4 @@
-import { Button } from "./components/ui/Button";
+import { Button } from "./components/Button";
 import { ShareIcon } from "./icons/ShareIcon";
 const App = () => {
   return (

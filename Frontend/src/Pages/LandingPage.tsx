@@ -129,7 +129,6 @@ const LandingPage = () => {
                 href="#"
                 className="bg-white text-indigo-600 hover:bg-gray-100 font-bold py-3 px-8 rounded-full shadow-lg border border-gray-200 transform transition-transform duration-200 hover:scale-105 flex items-center justify-center"
               >
-            
                 <Link to="/signin">Sign In</Link>
                 <ArrowRight className="ml-2 w-5 h-5" />
               </a>

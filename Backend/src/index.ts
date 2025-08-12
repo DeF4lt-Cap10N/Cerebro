@@ -9,6 +9,9 @@ import express from "express"
 const app = express();
 app.use(express.json());
 
+import cors from "cors";
+app.use(cors());
+
 import { userModel, ContentModel, LinkModel } from "./db"
 import { userMiddleware } from './middleware';
 
@@ -17,35 +20,27 @@ import { userMiddleware } from './middleware';
 app.post("/api/v1/signup", async (req, res) => {
     const { username, password } = req.body;
 
-    const duplicateUser = await userModel.findOne({
-        username: username
-    })
+    if (!username || !password) {
+        return res.status(400).json({
+            message: "Username and password are required"
+        });
+    }
 
-    const hashPassword = await bcrypt.hash(password, 5);
-    console.log(hashPassword);
-
+    const duplicateUser = await userModel.findOne({ username });
+    
     if (duplicateUser) {
-        res.json({
-            message: "User already signup"
-        })
-        return;
+        return res.status(409).json({ message: "User already signed up" });
     }
 
     try {
-        await userModel.create({
-            username: username,
-            password: hashPassword,
-        })
-        res.json({
-            message: "user Signup successfuly!!"
-        })
+        const hashPassword = await bcrypt.hash(password, 5);
+        await userModel.create({ username, password: hashPassword });
+
+        res.status(201).json({ message: "User signup successful!" });
+    } catch (err) {
+        res.status(500).json({ message: `User signup issue: ${err}` });
     }
-    catch (err) {
-        res.status(400).json({
-            message: `user signup issue : ${err}`
-        })
-    }
-})
+});
 
 app.post("/api/v1/signin", async (req, res) => {
     const { username, password } = req.body;
@@ -93,9 +88,19 @@ app.post("/api/v1/signin", async (req, res) => {
 app.post("/api/v1/content", userMiddleware, async (req, res) => {
     const { link, title } = req.body;
 
+    let type = '';
+    if (link.includes('youtube.com') || link.includes('youtu.be')) {
+        type = 'youtube';
+    } else if (link.includes('twitter.com') || link.includes('x.com')) {
+        type = 'twitter';
+    } else {
+        type = 'unsupported';
+    }
+
     await ContentModel.create({
         link,
         title,
+        type, 
         // @ts-ignore
         userId: req.userId,
         tags: []
@@ -104,11 +109,7 @@ app.post("/api/v1/content", userMiddleware, async (req, res) => {
     res.json({
         message: "content Created"
     })
-
-
-
-})
-
+});
 app.get("/api/v1/content", userMiddleware, async (req, res) => {
     //@ts-ignore
     const userId = req.userId;
